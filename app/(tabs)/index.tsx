@@ -1,10 +1,10 @@
+import AccountBalance from '@/components/account-balance';
 import Header from '@/components/header';
-import WalletBalance from '@/components/wallet-balance';
 import TransactionList from '@/components/transaction-list';
-import React from 'react';
-import { ScrollView, StatusBar, StyleSheet, View } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -19,7 +19,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <WalletBalance />
+        <AccountBalance />
         <TransactionList />
       </ScrollView>
     </View>

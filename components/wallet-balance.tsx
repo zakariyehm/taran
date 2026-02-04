@@ -1,9 +1,9 @@
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function WalletBalance() {
   const [selectedPeriod, setSelectedPeriod] = useState('1D');
@@ -78,27 +78,32 @@ export default function WalletBalance() {
 
       {/* Time Period Selector */}
       <View style={styles.periodSelector}>
-        {['1D', '1W', '1M', '1Y'].map((period) => (
-          <TouchableOpacity
-            key={period}
-            style={[
-              styles.periodButton,
-              { backgroundColor: colors.border },
-              selectedPeriod === period && { backgroundColor: colors.card },
-            ]}
-            onPress={() => setSelectedPeriod(period)}
-          >
-            <Text
+        {['1D', '1W', '1M', '1Y'].map((period) => {
+          const isSelected = selectedPeriod === period;
+          return (
+            <TouchableOpacity
+              key={period}
               style={[
-                styles.periodText,
-                { color: colors.secondaryText },
-                selectedPeriod === period && { color: colors.text },
+                styles.periodButton,
+                { 
+                  backgroundColor: isSelected ? colors.buttonSelectedBg : colors.border,
+                  borderWidth: 1,
+                  borderColor: isSelected ? colors.buttonSelectedBg : 'transparent',
+                },
               ]}
+              onPress={() => setSelectedPeriod(period)}
             >
-              {period}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.periodText,
+                  { color: isSelected ? colors.buttonSelectedText : colors.secondaryText },
+                ]}
+              >
+                {period}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );

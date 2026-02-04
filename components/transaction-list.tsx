@@ -1,9 +1,9 @@
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface Transaction {
   id: string;
@@ -18,46 +18,37 @@ interface Transaction {
 const transactions: Transaction[] = [
   {
     id: '1',
-    name: 'Jonny Pease',
-    status: 'Cancelled · Today',
-    amount: '1,156.10',
-    currency: 'EUR',
+    name: 'Swap: EvcPlus → Zaad',
+    status: 'Completed · Today',
+    amount: '98.90',
+    currency: 'Zaad',
     icon: 'arrow-up',
     iconColor: '#3a3a3a',
   },
   {
     id: '2',
-    name: 'Assets fee',
-    status: 'Mar 1st',
-    amount: '0.01',
-    currency: 'GBP',
-    icon: 'document-text',
-    iconColor: '#3a3a3a',
-  },
-  {
-    id: '3',
-    name: 'Jonathan Pease',
-    status: 'Sent · Feb 16th',
-    amount: '99.76',
-    currency: 'GBP',
+    name: 'Swap: Zaad → USDT (BEP20)',
+    status: 'Completed · Feb 16th',
+    amount: '98.00',
+    currency: 'USDT-BEP20',
     icon: 'arrow-up',
     iconColor: '#3a3a3a',
   },
   {
-    id: '4',
-    name: 'Sarah Wilson',
-    status: 'Received · Feb 14th',
-    amount: '250.00',
-    currency: 'EUR',
+    id: '3',
+    name: 'Swap: USDT (TRC20) → EvcPlus',
+    status: 'Completed · Feb 14th',
+    amount: '97.00',
+    currency: 'EvcPlus',
     icon: 'arrow-down',
     iconColor: '#3a3a3a',
   },
   {
-    id: '5',
-    name: 'Monthly subscription',
-    status: 'Feb 10th',
-    amount: '12.99',
-    currency: 'GBP',
+    id: '4',
+    name: 'Swap: Sahal → Solana',
+    status: 'Completed · Feb 10th',
+    amount: '12.88',
+    currency: 'SOL',
     icon: 'card',
     iconColor: '#3a3a3a',
   },

@@ -1,11 +1,11 @@
 import HomeIcon from '@/components/icons/home-icon';
 import SettingsIcon from '@/components/icons/settings-icon';
 import SwapIcon from '@/components/icons/swap-icon';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

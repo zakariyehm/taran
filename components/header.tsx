@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Header() {
@@ -11,18 +11,22 @@ export default function Header() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <TouchableOpacity style={[styles.scanButton, { backgroundColor: colors.border }]}>
-          <Ionicons name="scan-outline" size={28} color={colors.text} />
+      <View style={styles.header}>
+        {/* Left: Profile Icon */}
+        <TouchableOpacity style={styles.iconButton}>
+          <Ionicons name="person-outline" size={24} color={colors.secondaryText} />
         </TouchableOpacity>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="notifications-outline" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="settings-outline" size={24} color={colors.text} />
-          </TouchableOpacity>
+
+        {/* Center: Balance Text and Amount */}
+        <View style={styles.centerContent}>
+          <Text style={[styles.balanceLabel, { color: colors.secondaryText }]}>Total Exchange</Text>
+          <Text style={[styles.balanceAmount, { color: colors.tint }]}>USD 150.00</Text>
         </View>
+
+        {/* Right: Card/Wallet Icon */}
+        <TouchableOpacity style={styles.iconButton}>
+          <Ionicons name="card-outline" size={24} color={colors.secondaryText} />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -38,21 +42,23 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
-  scanButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 16,
-  },
   iconButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  centerContent: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  balanceAmount: {
+    fontSize: 20,
+    fontWeight: '600',
   },
 });
