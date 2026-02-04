@@ -118,6 +118,12 @@ export default function AddAccountScreen() {
     }
   };
 
+  const validateBEP20Address = (address: string): boolean => {
+    // BEP20 addresses start with 0x and are 42 characters long (0x + 40 hex chars)
+    const bep20Regex = /^0x[a-fA-F0-9]{40}$/;
+    return bep20Regex.test(address);
+  };
+
   const handleSaveAdd = async () => {
     if (!addOption) return;
     const val = addValue.trim();
@@ -126,6 +132,13 @@ export default function AddAccountScreen() {
       setAddError(isLocal ? 'Please enter a number' : 'Please enter an address');
       return;
     }
+    
+    // Validate BEP20 address format
+    if (addOption.label === 'USDT (BEP20)' && !validateBEP20Address(val)) {
+      setAddError('Invalid BEP20 address. Must start with 0x and be 42 characters long. Example: 0x69be2364f0b9f42a957eba9c208bc7447c763fcf');
+      return;
+    }
+    
     setAddError('');
     try {
       const raw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
@@ -434,13 +447,22 @@ export default function AddAccountScreen() {
             <TextInput
               style={[
                 styles.input,
-                { color: colors.text, borderColor: colors.border },
+                { 
+                  color: colors.text, 
+                  borderColor: addError && addOption?.label === 'USDT (BEP20)' ? '#ff4444' : colors.border 
+                },
               ]}
               value={addValue}
-              onChangeText={(t) => { setAddValue(t); setAddError(''); }}
+              onChangeText={(t) => { 
+                setAddValue(t); 
+                // Clear error when user starts typing
+                if (addError) setAddError(''); 
+              }}
               placeholder={
                 addOption?.type === 'local'
                   ? 'e.g. 252612045488'
+                  : addOption?.label === 'USDT (BEP20)'
+                  ? 'e.g. 0x69be2364f0b9f42a957eba9c208bc7447c763fcf'
                   : 'e.g. TN3W4H6rK2ce4vX9YnFQ...'
               }
               placeholderTextColor={colors.secondaryText}
