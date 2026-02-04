@@ -5,15 +5,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const ONBOARDING_KEY = '@onboarding_complete';
 const ADDED_ACCOUNTS_KEY = '@added_accounts';
+const DELETED_ACCOUNTS_KEY = '@deleted_accounts';
 
 interface AccountCard {
   icon: string;
@@ -38,26 +39,48 @@ export default function AccountBalance() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const [onboardRaw, addedRaw] = await Promise.all([
+      const [onboardRaw, addedRaw, deletedRaw] = await Promise.all([
         AsyncStorage.getItem(ONBOARDING_KEY),
         AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
+        AsyncStorage.getItem(DELETED_ACCOUNTS_KEY),
       ]);
+      
+      const deleted: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
       const parsed = onboardRaw ? JSON.parse(onboardRaw) : null;
       const onboardNumber = parsed?.number?.trim() || '';
       const onboardType = parsed?.accountType || 'EvcPlus';
-      const local: AccountCard[] = [
-        { icon: '📱', balance: '0.00', last4: onboardNumber || '****', label: onboardType },
-      ];
+      
+      const local: AccountCard[] = [];
       const crypto: AccountCard[] = [];
-      const added: { label: string; type: string; number?: string; address?: string }[] = addedRaw ? JSON.parse(addedRaw) : [];
+      
+      // Add onboarding account if it has a number and isn't deleted
+      if (onboardNumber && !deleted.includes(onboardType)) {
+        local.push({ 
+          icon: '📱', 
+          balance: '0.00', 
+          last4: onboardNumber, 
+          label: onboardType 
+        });
+      }
+      
+      // Process added accounts
+      const added: { label: string; type: string; number?: string; address?: string }[] = 
+        addedRaw ? JSON.parse(addedRaw) : [];
+      
       added.forEach((a) => {
-        if (a.type === 'local' && a.label === onboardType) return;
+        // Skip if deleted
+        if (deleted.includes(a.label)) return;
+        
+        // Skip if it's the same as onboarding account (already added above)
+        if (a.type === 'local' && a.label === onboardType && local.length > 0) return;
+        
         const card: AccountCard = {
           icon: getIcon(a.label),
           balance: '0.00',
           last4: a.number || '',
           label: a.label,
         };
+        
         if (a.type === 'local' && a.number) {
           card.last4 = a.number;
           local.push(card);
@@ -67,10 +90,12 @@ export default function AccountBalance() {
           crypto.push(card);
         }
       });
+      
       setLocalCards(local);
       setCryptoCards(crypto);
-    } catch {
-      setLocalCards([{ icon: '📱', balance: '0.00', last4: '****', label: 'EvcPlus' }]);
+    } catch (error) {
+      // If there's an error, show empty state
+      setLocalCards([]);
       setCryptoCards([]);
     }
   }, []);
@@ -81,7 +106,7 @@ export default function AccountBalance() {
     }, [loadAccounts])
   );
 
-  const cards = selectedFilter === 'Crypto' ? cryptoCards : localCards;
+  const cards = selectedFilter === 'Crypto' ? cryptoCards : [...localCards, ...cryptoCards];
 
   const maskLast4 = (number: string) => {
     if (number.length <= 4) return '****';

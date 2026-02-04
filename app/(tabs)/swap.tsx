@@ -1,3 +1,4 @@
+import Button from '@/components/ui/button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ONBOARDING_KEY = '@onboarding_complete';
 const ADDED_ACCOUNTS_KEY = '@added_accounts';
+const DELETED_ACCOUNTS_KEY = '@deleted_accounts';
 
 interface Currency {
   code: string;
@@ -46,17 +48,20 @@ export default function SwapScreen() {
 
   const loadUserAccounts = useCallback(async () => {
     try {
-      const [onboardRaw, addedRaw] = await Promise.all([
+      const [onboardRaw, addedRaw, deletedRaw] = await Promise.all([
         AsyncStorage.getItem(ONBOARDING_KEY),
         AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
+        AsyncStorage.getItem(DELETED_ACCOUNTS_KEY),
       ]);
+      const deleted: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
       const list: Currency[] = [];
       const parsed = onboardRaw ? JSON.parse(onboardRaw) : null;
-      if (parsed?.accountType) {
+      if (parsed?.accountType && !deleted.includes(parsed.accountType)) {
         list.push({ code: parsed.accountType, name: parsed.accountType, icon: getIcon(parsed.accountType), type: 'local' });
       }
       const added: { label: string; type: string }[] = addedRaw ? JSON.parse(addedRaw) : [];
       added.forEach((a) => {
+        if (deleted.includes(a.label)) return;
         if (a.type === 'local' && !list.some((c) => c.code === a.label)) {
           list.push({ code: a.label, name: a.label, icon: getIcon(a.label), type: 'local' });
         } else if (a.type === 'crypto') {
@@ -295,21 +300,13 @@ export default function SwapScreen() {
         )}
 
         {/* Swap button - disabled when same currency */}
-        <TouchableOpacity
-          style={[
-            styles.priceComparisonButton,
-            {
-              borderColor: colors.tint,
-              borderRadius: 4,
-              opacity: sendCurrency === receiveCurrency ? 0.4 : 1,
-            },
-          ]}
+        <Button
+          title="Swap"
+          onPress={() => {}}
+          variant="outline"
+          style={styles.swapButton}
           disabled={sendCurrency === receiveCurrency}
-        >
-          <Text style={[styles.priceComparisonText, { color: colors.tint }]}>
-            Swap
-          </Text>
-        </TouchableOpacity>
+        />
       </ScrollView>
 
       {/* Currency Picker Bottom Sheet */}
@@ -498,15 +495,8 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 14,
   },
-  priceComparisonButton: {
-    borderWidth: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
+  swapButton: {
     marginBottom: 24,
-  },
-  priceComparisonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   bottomSheetContent: {
     flex: 1,

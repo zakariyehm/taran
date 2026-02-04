@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ONBOARDING_KEY = '@onboarding_complete';
 const ADDED_ACCOUNTS_KEY = '@added_accounts';
+const DELETED_ACCOUNTS_KEY = '@deleted_accounts';
 
 export interface AddedAccount {
   label: string;
@@ -59,19 +60,21 @@ export default function AddAccountScreen() {
     useCallback(() => {
       const load = async () => {
         try {
-          const [onboard, added] = await Promise.all([
+          const [onboard, added, deletedRaw] = await Promise.all([
             AsyncStorage.getItem(ONBOARDING_KEY),
             AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
+            AsyncStorage.getItem(DELETED_ACCOUNTS_KEY),
           ]);
+          const deleted: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
           const labels = new Set<string>();
           if (onboard) {
             const parsed = JSON.parse(onboard);
-            if (parsed?.accountType) labels.add(parsed.accountType);
-            else labels.add('EvcPlus');
+            const type = parsed?.accountType || 'EvcPlus';
+            if (!deleted.includes(type)) labels.add(type);
           }
           if (added) {
             const list: AddedAccount[] = JSON.parse(added);
-            list.forEach((a) => labels.add(a.label));
+            list.forEach((a) => { if (!deleted.includes(a.label)) labels.add(a.label); });
           }
           setExistingLabels(labels);
         } catch {
@@ -83,25 +86,21 @@ export default function AddAccountScreen() {
   );
 
   const handleAddAccount = async (option: AccountOption) => {
-    const isOnboardingAccount = option.type === 'local' && existingLabels.has(option.label);
-    if (isOnboardingAccount) {
-      try {
-        const raw = await AsyncStorage.getItem(ONBOARDING_KEY);
-        const parsed = raw ? JSON.parse(raw) : null;
-        const isThisAccount = parsed?.accountType === option.label;
+    try {
+      const onboardRaw = await AsyncStorage.getItem(ONBOARDING_KEY);
+      const onboard = onboardRaw ? JSON.parse(onboardRaw) : null;
+      const onboardAccountType = onboard?.accountType || 'EvcPlus';
+      
+      const isOnboardingAccount = option.label === onboardAccountType;
+      
+      if (isOnboardingAccount) {
         setEditAccountLabel(option.label);
-        setEditNumber((isThisAccount ? parsed?.number : '')?.trim() || '');
+        setEditNumber(onboard?.number?.trim() || '');
         setEditError('');
         setEditModalVisible(true);
-      } catch {
-        setEditAccountLabel(option.label);
-        setEditNumber('');
-        setEditModalVisible(true);
-      }
-    } else {
-      try {
-        const raw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
-        const list: AddedAccount[] = raw ? JSON.parse(raw) : [];
+      } else {
+        const addedRaw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
+        const list: AddedAccount[] = addedRaw ? JSON.parse(addedRaw) : [];
         const existing = list.find((a) => a.label === option.label);
         const prefill = existing?.type === 'local' ? existing.number ?? '' : existing?.address ?? '';
         setAddOption(option);
@@ -109,13 +108,13 @@ export default function AddAccountScreen() {
         setAddIsEdit(!!existing);
         setAddError('');
         setAddModalVisible(true);
-      } catch {
-        setAddOption(option);
-        setAddValue('');
-        setAddIsEdit(false);
-        setAddError('');
-        setAddModalVisible(true);
       }
+    } catch {
+      setAddOption(option);
+      setAddValue('');
+      setAddIsEdit(false);
+      setAddError('');
+      setAddModalVisible(true);
     }
   };
 
@@ -139,6 +138,19 @@ export default function AddAccountScreen() {
         ? list.map((a, i) => (i === existing ? newAcc : a))
         : [...list, newAcc];
       await AsyncStorage.setItem(ADDED_ACCOUNTS_KEY, JSON.stringify(updated));
+      const deletedRaw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (deletedList.includes(addOption.label)) {
+        const newDeleted = deletedList.filter((l) => l !== addOption.label);
+        await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(newDeleted));
+      }
+      if (isLocal) {
+        const onboardRaw = await AsyncStorage.getItem(ONBOARDING_KEY);
+        const onboard = onboardRaw ? JSON.parse(onboardRaw) : null;
+        if (onboard?.accountType === addOption.label) {
+          await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify({ ...onboard, number: val }));
+        }
+      }
       setAddModalVisible(false);
       setAddOption(null);
       setAddIsEdit(false);
@@ -163,12 +175,31 @@ export default function AddAccountScreen() {
     }
     setEditError('');
     try {
-      const raw = await AsyncStorage.getItem(ONBOARDING_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
+      // Update onboarding account
+      const onboardRaw = await AsyncStorage.getItem(ONBOARDING_KEY);
+      const parsed = onboardRaw ? JSON.parse(onboardRaw) : {};
       await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify({
         ...parsed,
         number: num,
       }));
+      
+      // Remove from deleted accounts if it was deleted before
+      const deletedRaw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (deletedList.includes(editAccountLabel)) {
+        const newDeleted = deletedList.filter((l) => l !== editAccountLabel);
+        await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(newDeleted));
+      }
+      
+      // Update in added accounts if it exists there
+      const addedRaw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
+      const addedList: AddedAccount[] = addedRaw ? JSON.parse(addedRaw) : [];
+      const existingIndex = addedList.findIndex((a) => a.label === editAccountLabel);
+      if (existingIndex >= 0) {
+        addedList[existingIndex] = { label: editAccountLabel, type: 'local', number: num };
+        await AsyncStorage.setItem(ADDED_ACCOUNTS_KEY, JSON.stringify(addedList));
+      }
+      
       setEditModalVisible(false);
       router.back();
     } catch {
@@ -180,6 +211,64 @@ export default function AddAccountScreen() {
     setEditModalVisible(false);
     setEditError('');
   };
+
+  const handleDeleteEdit = async () => {
+    try {
+      // Add to deleted accounts list
+      const deletedRaw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (!deletedList.includes(editAccountLabel)) {
+        deletedList.push(editAccountLabel);
+        await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(deletedList));
+      }
+      
+      // Remove from added accounts if it exists there
+      const addedRaw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
+      const addedList: AddedAccount[] = addedRaw ? JSON.parse(addedRaw) : [];
+      const updatedAdded = addedList.filter((a) => a.label !== editAccountLabel);
+      await AsyncStorage.setItem(ADDED_ACCOUNTS_KEY, JSON.stringify(updatedAdded));
+      
+      // Clear onboarding data if it's the onboarding account
+      const onboardRaw = await AsyncStorage.getItem(ONBOARDING_KEY);
+      const onboard = onboardRaw ? JSON.parse(onboardRaw) : null;
+      if (onboard?.accountType === editAccountLabel) {
+        await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify({ ...onboard, number: '' }));
+      }
+      
+      setEditModalVisible(false);
+      router.back();
+    } catch {
+      setEditError('Failed to delete');
+    }
+  };
+
+  const handleDeleteAdd = async () => {
+    if (!addOption) return;
+    try {
+      // Add to deleted accounts list
+      const deletedRaw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+      const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+      if (!deletedList.includes(addOption.label)) {
+        deletedList.push(addOption.label);
+        await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(deletedList));
+      }
+      
+      // Remove from added accounts
+      const addedRaw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
+      const addedList: AddedAccount[] = addedRaw ? JSON.parse(addedRaw) : [];
+      const updated = addedList.filter((a) => a.label !== addOption.label);
+      await AsyncStorage.setItem(ADDED_ACCOUNTS_KEY, JSON.stringify(updated));
+      
+      setAddModalVisible(false);
+      setAddOption(null);
+      setAddIsEdit(false);
+      router.back();
+    } catch {
+      setAddError('Failed to delete');
+    }
+  };
+
+  const canDelete = existingLabels.size > 1;
 
   return (
     <SafeAreaView
@@ -273,7 +362,7 @@ export default function AddAccountScreen() {
             style={[styles.modalContent, { backgroundColor: colors.card }]}
           >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {editAccountLabel}
+              Edit {editAccountLabel}
             </Text>
             <Text style={[styles.modalSubtitle, { color: colors.secondaryText }]}>
               {editNumber || 'No number'}
@@ -293,6 +382,15 @@ export default function AddAccountScreen() {
               keyboardType="phone-pad"
             />
             {editError ? <Text style={styles.errorText}>{editError}</Text> : null}
+            {canDelete && (
+              <TouchableOpacity
+                style={[styles.deleteButton, { borderColor: '#ff4444' }]}
+                onPress={handleDeleteEdit}
+              >
+                <Ionicons name="trash-outline" size={18} color="#ff4444" />
+                <Text style={styles.deleteButtonText}>Delete Account</Text>
+              </TouchableOpacity>
+            )}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, { borderColor: colors.border }]}
@@ -349,6 +447,15 @@ export default function AddAccountScreen() {
               keyboardType={addOption?.type === 'local' ? 'phone-pad' : 'default'}
             />
             {addError ? <Text style={styles.errorText}>{addError}</Text> : null}
+            {addIsEdit && addOption && canDelete && (
+              <TouchableOpacity
+                style={[styles.deleteButton, { borderColor: '#ff4444' }]}
+                onPress={handleDeleteAdd}
+              >
+                <Ionicons name="trash-outline" size={18} color="#ff4444" />
+                <Text style={styles.deleteButtonText}>Delete Account</Text>
+              </TouchableOpacity>
+            )}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, { borderColor: colors.border }]}
@@ -484,5 +591,20 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 16,
     fontWeight: '700',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+  },
+  deleteButtonText: {
+    color: '#ff4444',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

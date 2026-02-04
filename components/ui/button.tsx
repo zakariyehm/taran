@@ -16,6 +16,7 @@ interface ButtonProps {
   iconPosition?: 'left' | 'right';
   style?: ViewStyle;
   flex?: boolean;
+  disabled?: boolean;
 }
 
 export default function Button({
@@ -26,6 +27,7 @@ export default function Button({
   iconPosition = 'left',
   style,
   flex,
+  disabled = false,
 }: ButtonProps) {
   const colorScheme = useColorScheme();
   const primaryColor = Colors[colorScheme ?? 'dark'].primary;
@@ -33,23 +35,28 @@ export default function Button({
   const isWhite = variant === 'white';
   const isLight = variant === 'light';
 
+  const disabledBg = '#4A4A5A';
+  const disabledText = '#8A8A9A';
+
   const buttonStyle = [
     styles.button,
-    isPrimary && { backgroundColor: primaryColor },
-    variant === 'outline' && {
+    disabled && { backgroundColor: disabledBg, borderColor: disabledBg, borderWidth: 1 },
+    !disabled && isPrimary && { backgroundColor: primaryColor },
+    !disabled && variant === 'outline' && {
       backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: primaryColor,
     },
-    (isWhite || isLight) && { backgroundColor: AppColors.white },
+    !disabled && (isWhite || isLight) && { backgroundColor: AppColors.white },
     flex && styles.flex,
   ];
 
   const textStyle = [
     styles.text,
-    isPrimary && styles.primaryText,
-    (variant === 'outline' || isLight) && { color: primaryColor },
-    isWhite && styles.whiteButtonText,
+    disabled && { color: disabledText },
+    !disabled && isPrimary && styles.primaryText,
+    !disabled && (variant === 'outline' || isLight) && { color: primaryColor },
+    !disabled && isWhite && styles.whiteButtonText,
   ];
 
   return (
@@ -57,12 +64,13 @@ export default function Button({
       style={[buttonStyle, style]}
       onPress={onPress}
       activeOpacity={0.8}
+      disabled={disabled}
     >
       {icon && iconPosition === 'left' && (
         <Ionicons
           name={icon}
           size={22}
-          color={isLight ? primaryColor : isWhite ? AppColors.black : isPrimary ? AppColors.white : primaryColor}
+          color={disabled ? disabledText : isLight ? primaryColor : isWhite ? AppColors.black : isPrimary ? AppColors.white : primaryColor}
           style={styles.iconLeft}
         />
       )}
@@ -71,7 +79,7 @@ export default function Button({
         <Ionicons
           name={icon}
           size={22}
-          color={isLight ? primaryColor : isWhite ? AppColors.black : isPrimary ? AppColors.white : primaryColor}
+          color={disabled ? disabledText : isLight ? primaryColor : isWhite ? AppColors.black : isPrimary ? AppColors.white : primaryColor}
           style={styles.iconRight}
         />
       )}
