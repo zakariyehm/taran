@@ -2,46 +2,90 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const ONBOARDING_KEY = '@onboarding_complete';
+const ADDED_ACCOUNTS_KEY = '@added_accounts';
 
 interface Currency {
   code: string;
   name: string;
   icon: string;
-  type: 'fiat' | 'local' | 'crypto';
+  type: 'local' | 'crypto';
 }
 
-const currencies: Currency[] = [
-  // Local
-  { code: 'EvcPlus', name: 'EvcPlus', icon: '📱', type: 'local' },
-  { code: 'Zaad', name: 'Zaad', icon: '📱', type: 'local' },
-  { code: 'Sahal', name: 'Sahal', icon: '📱', type: 'local' },
-  // Crypto
-  { code: 'USDT-TRC20', name: 'USDT (TRC20)', icon: '₮', type: 'crypto' },
-  { code: 'USDT-BEP20', name: 'USDT (BEP20)', icon: '₮', type: 'crypto' },
-  { code: 'SOL', name: 'Solana', icon: '◎', type: 'crypto' },
-];
+const getIcon = (label: string) => {
+  if (label.includes('USDT')) return '₮';
+  if (label === 'Solana') return '◎';
+  return '📱';
+};
 
 export default function SwapScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [sendAmount, setSendAmount] = useState('100');
-  const [sendCurrency, setSendCurrency] = useState('EvcPlus');
-  const [receiveCurrency, setReceiveCurrency] = useState('Zaad');
+  const [sendCurrency, setSendCurrency] = useState('');
+  const [receiveCurrency, setReceiveCurrency] = useState('');
   const [currencyPickerType, setCurrencyPickerType] = useState<'send' | 'receive' | null>(null);
   
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['70%'], []);
+
+  const loadUserAccounts = useCallback(async () => {
+    try {
+      const [onboardRaw, addedRaw] = await Promise.all([
+        AsyncStorage.getItem(ONBOARDING_KEY),
+        AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
+      ]);
+      const list: Currency[] = [];
+      const parsed = onboardRaw ? JSON.parse(onboardRaw) : null;
+      if (parsed?.accountType) {
+        list.push({ code: parsed.accountType, name: parsed.accountType, icon: getIcon(parsed.accountType), type: 'local' });
+      }
+      const added: { label: string; type: string }[] = addedRaw ? JSON.parse(addedRaw) : [];
+      added.forEach((a) => {
+        if (a.type === 'local' && !list.some((c) => c.code === a.label)) {
+          list.push({ code: a.label, name: a.label, icon: getIcon(a.label), type: 'local' });
+        } else if (a.type === 'crypto') {
+          list.push({ code: a.label, name: a.label, icon: getIcon(a.label), type: 'crypto' });
+        }
+      });
+      setCurrencies(list);
+      if (list.length > 0) {
+        setSendCurrency((prev) => {
+          const valid = list.some((c) => c.code === prev);
+          if (!valid) return list[0].code;
+          return prev;
+        });
+        setReceiveCurrency((prev) => {
+          const valid = list.some((c) => c.code === prev);
+          if (!valid) return list.length > 1 ? list[1].code : list[0].code;
+          return prev;
+        });
+      }
+    } catch {
+      setCurrencies([]);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserAccounts();
+    }, [loadUserAccounts])
+  );
 
   const getCurrencyIcon = (code: string) => {
     const currency = currencies.find((c) => c.code === code);
@@ -49,10 +93,14 @@ export default function SwapScreen() {
   };
 
   const isLocalCurrency = (code: string) => {
-    return ['EvcPlus', 'Zaad', 'Sahal'].includes(code);
+    const c = currencies.find((x) => x.code === code);
+    return c?.type === 'local';
   };
 
   const calculateSwapAmounts = useCallback(() => {
+    if (!sendCurrency || !receiveCurrency) {
+      return { sendAmount: 0, serviceFee: 0, receiveAmount: 0, feeRate: 0, swapType: 'local-to-local' as const };
+    }
     const sendAmountNum = parseFloat(sendAmount.replace(/,/g, '')) || 0;
     
     // Check if both are local currencies
@@ -120,11 +168,19 @@ export default function SwapScreen() {
   const handleCurrencySelect = useCallback((currency: Currency) => {
     if (currencyPickerType === 'send') {
       setSendCurrency(currency.code);
+      if (receiveCurrency === currency.code && currencies.length > 1) {
+        const other = currencies.find((c) => c.code !== currency.code);
+        if (other) setReceiveCurrency(other.code);
+      }
     } else if (currencyPickerType === 'receive') {
       setReceiveCurrency(currency.code);
+      if (sendCurrency === currency.code && currencies.length > 1) {
+        const other = currencies.find((c) => c.code !== currency.code);
+        if (other) setSendCurrency(other.code);
+      }
     }
     bottomSheetRef.current?.close();
-  }, [currencyPickerType]);
+  }, [currencyPickerType, sendCurrency, receiveCurrency, currencies]);
 
   const formatAmount = (amount: number) => {
     return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -171,7 +227,7 @@ export default function SwapScreen() {
               onPress={() => handleOpenCurrencyPicker('send')}
             >
               <Text style={styles.flag}>{getCurrencyIcon(sendCurrency)}</Text>
-              <Text style={[styles.currencyText, { color: colors.text }]}>{sendCurrency}</Text>
+              <Text style={[styles.currencyText, { color: colors.text }]}>{sendCurrency || 'Select'}</Text>
               <Ionicons name="chevron-down" size={16} color={colors.secondaryText} />
             </TouchableOpacity>
           </View>
@@ -218,7 +274,7 @@ export default function SwapScreen() {
               onPress={() => handleOpenCurrencyPicker('receive')}
             >
               <Text style={styles.flag}>{getCurrencyIcon(receiveCurrency)}</Text>
-              <Text style={[styles.currencyText, { color: colors.text }]}>{receiveCurrency}</Text>
+              <Text style={[styles.currencyText, { color: colors.text }]}>{receiveCurrency || 'Select'}</Text>
               <Ionicons name="chevron-down" size={16} color={colors.secondaryText} />
             </TouchableOpacity>
           </View>
@@ -238,12 +294,17 @@ export default function SwapScreen() {
           </View>
         )}
 
-        {/* Price comparison button */}
+        {/* Swap button - disabled when same currency */}
         <TouchableOpacity
           style={[
             styles.priceComparisonButton,
-            { borderColor: colors.tint, borderRadius: 4 },
+            {
+              borderColor: colors.tint,
+              borderRadius: 4,
+              opacity: sendCurrency === receiveCurrency ? 0.4 : 1,
+            },
           ]}
+          disabled={sendCurrency === receiveCurrency}
         >
           <Text style={[styles.priceComparisonText, { color: colors.tint }]}>
             Swap
@@ -273,7 +334,12 @@ export default function SwapScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.currencyListContent}
           >
-            {currencies.map((currency) => (
+            {currencies.length === 0 ? (
+              <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
+                No accounts yet. Add an account from the home screen.
+              </Text>
+            ) : (
+            currencies.map((currency) => (
               <TouchableOpacity
                 key={currency.code}
                 style={[
@@ -292,7 +358,7 @@ export default function SwapScreen() {
                 <Text style={styles.currencyItemIcon}>{currency.icon}</Text>
                 <View style={styles.currencyItemInfo}>
                   <Text style={[styles.currencyItemCode, { color: colors.text }]}>
-                    {currency.code}
+                    {currency.name}
                   </Text>
                   <Text style={[styles.currencyItemName, { color: colors.secondaryText }]}>
                     {currency.name}
@@ -303,7 +369,7 @@ export default function SwapScreen() {
                   <Ionicons name="checkmark" size={20} color={colors.tint} />
                 ) : null}
               </TouchableOpacity>
-            ))}
+            )))}
             <View style={{ height: 40 }} />
           </BottomSheetScrollView>
         </BottomSheetView>
@@ -485,5 +551,10 @@ const styles = StyleSheet.create({
   },
   currencyItemName: {
     fontSize: 14,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+    paddingVertical: 32,
   },
 });
