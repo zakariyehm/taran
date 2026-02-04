@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ScrollView,
@@ -302,7 +303,7 @@ export default function SwapScreen() {
         {/* Swap button - disabled when same currency */}
         <Button
           title="Swap"
-          onPress={() => {}}
+          onPress={() => router.push('/choose-provider')}
           variant="outline"
           style={styles.swapButton}
           disabled={sendCurrency === receiveCurrency}
