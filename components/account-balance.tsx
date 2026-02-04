@@ -1,14 +1,19 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+
+const ONBOARDING_KEY = '@onboarding_complete';
+const ADDED_ACCOUNTS_KEY = '@added_accounts';
 
 interface AccountCard {
   icon: string;
@@ -18,40 +23,61 @@ interface AccountCard {
   label: string;
 }
 
-const localCards: AccountCard[] = [
-  { icon: '📱', balance: '50.00', last4: '252612045488', label: 'Sahal' },
-  { icon: '📱', balance: '25.00', last4: '252612045489', label: 'Zaad' },
-  { icon: '📱', balance: '15.00', last4: '252612045490', label: 'Hormuud' },
-];
-
-const cryptoCards: AccountCard[] = [
-  {
-    icon: '₮',
-    balance: '100.00',
-    last4: 'abcd',
-    address: 'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9',
-    label: 'USDT (TRC20)',
-  },
-  {
-    icon: '₮',
-    balance: '50.00',
-    last4: 'ef12',
-    address: '0x742d35Cc6634C0532925a3b844Bc9e7595f8bE12',
-    label: 'USDT (BEP20)',
-  },
-  {
-    icon: '◎',
-    balance: '2.50',
-    last4: '7k9m',
-    address: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-    label: 'Solana',
-  },
-];
+const getIcon = (label: string) => {
+  if (label.includes('USDT')) return '₮';
+  if (label === 'Solana') return '◎';
+  return '📱';
+};
 
 export default function AccountBalance() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Crypto'>('All');
+  const [localCards, setLocalCards] = useState<AccountCard[]>([]);
+  const [cryptoCards, setCryptoCards] = useState<AccountCard[]>([]);
+
+  const loadAccounts = useCallback(async () => {
+    try {
+      const [onboardRaw, addedRaw] = await Promise.all([
+        AsyncStorage.getItem(ONBOARDING_KEY),
+        AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
+      ]);
+      const parsed = onboardRaw ? JSON.parse(onboardRaw) : null;
+      const evcNumber = parsed?.number?.trim() || '';
+      const local: AccountCard[] = [
+        { icon: '📱', balance: '0.00', last4: evcNumber || '****', label: 'EvcPlus' },
+      ];
+      const crypto: AccountCard[] = [];
+      const added: { label: string; type: string; number?: string; address?: string }[] = addedRaw ? JSON.parse(addedRaw) : [];
+      added.forEach((a) => {
+        const card: AccountCard = {
+          icon: getIcon(a.label),
+          balance: '0.00',
+          last4: a.number || '',
+          label: a.label,
+        };
+        if (a.type === 'local' && a.number) {
+          card.last4 = a.number;
+          local.push(card);
+        } else if (a.type === 'crypto' && a.address) {
+          card.address = a.address;
+          card.last4 = '';
+          crypto.push(card);
+        }
+      });
+      setLocalCards(local);
+      setCryptoCards(crypto);
+    } catch {
+      setLocalCards([{ icon: '📱', balance: '0.00', last4: '****', label: 'EvcPlus' }]);
+      setCryptoCards([]);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAccounts();
+    }, [loadAccounts])
+  );
 
   const cards = selectedFilter === 'Crypto' ? cryptoCards : localCards;
 
@@ -132,7 +158,7 @@ export default function AccountBalance() {
       >
         {cards.map((card, index) => (
           <View
-            key={index}
+            key={card.label + (card.address || card.last4) + index}
             style={[styles.currencyCard, { backgroundColor: colors.card }]}
           >
             <View style={styles.flagContainer}>

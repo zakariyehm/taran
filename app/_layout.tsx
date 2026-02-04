@@ -16,13 +16,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={DarkTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen
-            name="add-account"
-            options={{ presentation: 'modal', headerShown: false }}
-          />
+          <Stack.Screen name="add-account" options={{ presentation: 'modal' }} />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>
