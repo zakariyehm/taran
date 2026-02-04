@@ -1,3 +1,4 @@
+import Button from '@/components/ui/button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,7 +11,6 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -106,12 +106,12 @@ export default function OnboardingScreen() {
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: colors.tint }]}
+            <Button
+              title="Save"
               onPress={handleSave}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
+              variant="primary"
+              style={styles.saveButton}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -160,13 +160,5 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
