@@ -305,17 +305,36 @@ export default function SwapScreen() {
           title="Swap"
           onPress={() => {
             const amountNum = parseFloat(sendAmount.replace(/,/g, '')) || 0;
-            router.push({
-              pathname: '/choose-provider',
-              params: {
-                sendAmount: amountNum.toString(),
-                sendCurrency: sendCurrency,
-                receiveCurrency: receiveCurrency,
-                receiveAmount: swapAmounts.receiveAmount.toString(),
-                amount: amountNum.toString(), // For merchant flow
-                merchantNumber: '600104', // Default merchant number
-              },
-            });
+            const isCryptoToLocal = swapAmounts.swapType === 'crypto-to-local';
+
+            if (isCryptoToLocal) {
+              // Crypto → Local (e.g. USDT BEP20 → EvcPlus): go to confirm screen
+              router.push({
+                pathname: '/confirm-payment',
+                params: {
+                  flow: 'crypto-to-local',
+                  sendAmount: amountNum.toString(),
+                  sendCurrency: sendCurrency,
+                  receiveCurrency: receiveCurrency,
+                  receiveAmount: swapAmounts.receiveAmount.toString(),
+                  amount: amountNum.toString(),
+                  merchantNumber: '600104',
+                },
+              });
+            } else {
+              // Local → Crypto or other: go to choose provider
+              router.push({
+                pathname: '/choose-provider',
+                params: {
+                  sendAmount: amountNum.toString(),
+                  sendCurrency: sendCurrency,
+                  receiveCurrency: receiveCurrency,
+                  receiveAmount: swapAmounts.receiveAmount.toString(),
+                  amount: amountNum.toString(),
+                  merchantNumber: '600104',
+                },
+              });
+            }
           }}
           variant="outline"
           style={styles.swapButton}

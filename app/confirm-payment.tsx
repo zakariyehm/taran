@@ -20,18 +20,29 @@ export default function ConfirmPaymentScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const params = useLocalSearchParams();
-  
-  // Get amount and merchant info from params (with defaults)
+
+  const isCryptoToLocal = params.flow === 'crypto-to-local';
+  const sendAmount = params.sendAmount ? parseFloat(params.sendAmount as string) : 0;
+  const sendCurrency = (params.sendCurrency as string) || '';
+  const receiveAmount = params.receiveAmount ? parseFloat(params.receiveAmount as string) : 0;
+  const receiveCurrency = (params.receiveCurrency as string) || '';
+
   const amount = params.amount ? parseFloat(params.amount as string) : 1;
   const merchantNumber = (params.merchantNumber as string) || '600104';
-  
   const ussdCode = `*789*${merchantNumber}*${amount}#`;
+  const depositAddress = '0x69be2364f0b9f42a957eba9c208bc7447c763fcf';
+  const shortAddress = depositAddress.length > 16
+    ? `${depositAddress.slice(0, 6)}...${depositAddress.slice(-8)}`
+    : depositAddress;
+
+  const codeOrAddress = isCryptoToLocal ? depositAddress : ussdCode;
+  const codeLabel = isCryptoToLocal ? 'Address' : 'Code';
 
   const [copied, setCopied] = useState(false);
 
   const handleCopyCode = async () => {
     try {
-      await Clipboard.setStringAsync(ussdCode);
+      await Clipboard.setStringAsync(codeOrAddress);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -49,24 +60,49 @@ export default function ConfirmPaymentScreen() {
   };
 
   const handleConfirmPayment = () => {
-    Alert.alert(
-      'Payment Confirmed',
-      `You have confirmed payment of $${amount.toFixed(2)}`,
-      [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
+    if (isCryptoToLocal) {
+      // Navigate to verification screen
+      router.push({
+        pathname: '/verify-crypto-payment' as any,
+        params: {
+          sendAmount: sendAmount.toString(),
+          sendCurrency,
+          receiveCurrency,
+          receiveAmount: receiveAmount.toString(),
         },
-      ]
-    );
+      });
+    } else {
+      Alert.alert(
+        'Payment Confirmed',
+        `You have confirmed payment of $${amount.toFixed(2)}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back(),
+          },
+        ]
+      );
+    }
   };
+
+  const instructionText = isCryptoToLocal
+    ? `Please send ${sendAmount.toFixed(2)} ${sendCurrency} to receive ${receiveAmount.toFixed(2)} ${receiveCurrency}. Use the code below:`
+    : `Please send $${amount.toFixed(2)} to the following number: ${merchantNumber}`;
+  const instructionSubtext = isCryptoToLocal
+    ? 'Below you can find the instruction on how to complete your swap.'
+    : 'Below you can find the instruction on how to send money to us.';
+  const confirmButtonTitle = isCryptoToLocal
+    ? `I have paid ${sendAmount.toFixed(2)} ${sendCurrency}`
+    : `I have paid $${amount.toFixed(2)}`;
+  const qrSubtext = isCryptoToLocal
+    ? `${sendAmount.toFixed(2)} ${sendCurrency} → ${receiveAmount.toFixed(2)} ${receiveCurrency}`
+    : `${merchantNumber} - $${amount.toFixed(2)}`;
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      {/* Header with Close Button */}
       <View style={styles.header}>
         <View style={styles.placeholder} />
         <Text style={[styles.headerTitle, { color: colors.text }]}>
@@ -85,68 +121,84 @@ export default function ConfirmPaymentScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Payment Instructions */}
         <View style={styles.instructionsContainer}>
           <Text style={[styles.instructionText, { color: colors.text }]}>
-            Please send ${amount.toFixed(2)} to the following number: {merchantNumber}
+            {instructionText}
           </Text>
           <Text style={[styles.instructionSubtext, { color: colors.secondaryText }]}>
-            Below you can find the instruction on how to send money to us.
+            {instructionSubtext}
           </Text>
         </View>
 
-        {/* USSD Code Section */}
         <View style={styles.codeSection}>
-          <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>Code</Text>
-          <View style={[styles.codeContainer, { backgroundColor: colors.card }]}>
-            <Text style={[styles.codeText, { color: colors.text }]}>{ussdCode}</Text>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleCopyCode}
-              >
-                <Ionicons 
-                  name={copied ? "checkmark" : "copy-outline"} 
-                  size={20} 
-                  color={copied ? colors.tint : colors.secondaryText} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleDialCode}
-              >
-                <Ionicons 
-                  name="call-outline" 
-                  size={20} 
-                  color={colors.tint} 
-                />
-              </TouchableOpacity>
+          <Text style={[styles.codeLabel, { color: colors.secondaryText }]}>{codeLabel}</Text>
+          {isCryptoToLocal ? (
+            <View style={[styles.addressCard, { backgroundColor: colors.card }]}>
+              <View style={styles.addressRow}>
+                <Text style={[styles.shortAddressText, { color: colors.text }]}>
+                  {shortAddress}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.copyButton, { backgroundColor: colors.tint + '20', borderColor: colors.tint }]}
+                  onPress={handleCopyCode}
+                >
+                  <Ionicons
+                    name={copied ? 'checkmark' : 'copy-outline'}
+                    size={18}
+                    color={copied ? colors.tint : colors.text}
+                  />
+                  <Text style={[styles.copyButtonText, { color: colors.tint }]}>
+                    {copied ? 'Copied' : 'Copy'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={[styles.codeContainer, { backgroundColor: colors.card }]}>
+              <Text style={[styles.codeText, { color: colors.text }]}>
+                {ussdCode}
+              </Text>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleCopyCode}
+                >
+                  <Ionicons
+                    name={copied ? "checkmark" : "copy-outline"}
+                    size={20}
+                    color={copied ? colors.tint : colors.secondaryText}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleDialCode}
+                >
+                  <Ionicons name="call-outline" size={20} color={colors.tint} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
-        {/* QR Code */}
         <View style={styles.qrContainer}>
           <View style={[styles.qrWrapper, { backgroundColor: colors.card }]}>
             <View style={[styles.qrPlaceholder, { backgroundColor: '#fff' }]}>
               <Text style={styles.qrPlaceholderText}>QR Code</Text>
               <Text style={[styles.qrPlaceholderSubtext, { color: colors.secondaryText }]}>
-                {merchantNumber} - ${amount.toFixed(2)}
+                {qrSubtext}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Confirmation Message */}
         <Text style={[styles.confirmationText, { color: colors.secondaryText }]}>
           Once you have made payment, come back and confirm using the button below
         </Text>
       </ScrollView>
 
-      {/* Confirm Payment Button */}
       <View style={styles.bottomContainer}>
         <Button
-          title={`I have paid $${amount.toFixed(2)}`}
+          title={confirmButtonTitle}
           onPress={handleConfirmPayment}
           style={styles.confirmButton}
         />
@@ -209,6 +261,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
     fontWeight: '500',
+  },
+  addressCard: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.2)',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  shortAddressText: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'monospace',
+    flex: 1,
+    marginRight: 12,
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 6,
+  },
+  copyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   codeContainer: {
     flexDirection: 'row',
