@@ -5,23 +5,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ONBOARDING_KEY = '@onboarding_complete';
+
+const ACCOUNT_OPTIONS = [
+  { label: 'EvcPlus', icon: '📱' },
+  { label: 'Zaad', icon: '📱' },
+  { label: 'Sahal', icon: '📱' },
+] as const;
 
 export default function OnboardingScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState<'EvcPlus' | 'Zaad' | 'Sahal'>('EvcPlus');
   const [number, setNumber] = useState('');
   const [error, setError] = useState('');
 
@@ -40,6 +48,7 @@ export default function OnboardingScreen() {
       await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify({
         firstName: first,
         lastName: last,
+        accountType: selectedAccount,
         number: num,
       }));
       router.replace('/(tabs)');
@@ -91,6 +100,27 @@ export default function OnboardingScreen() {
               autoCapitalize="words"
             />
 
+            <Text style={[styles.label, { color: colors.secondaryText }]}>Account</Text>
+            <View style={styles.accountRow}>
+              {ACCOUNT_OPTIONS.map((opt) => {
+                const isSelected = selectedAccount === opt.label;
+                return (
+                  <TouchableOpacity
+                    key={opt.label}
+                    style={[
+                      styles.accountOption,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      isSelected && { borderColor: colors.primary, borderWidth: 2 },
+                    ]}
+                    onPress={() => { setSelectedAccount(opt.label); setError(''); }}
+                  >
+                    <Text style={styles.accountIcon}>{opt.icon}</Text>
+                    <Text style={[styles.accountLabel, { color: colors.text }]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <Text style={[styles.label, { color: colors.secondaryText }]}>Phone Number</Text>
             <TextInput
               style={[
@@ -99,7 +129,7 @@ export default function OnboardingScreen() {
               ]}
               value={number}
               onChangeText={(t) => { setNumber(t); setError(''); }}
-              placeholder="e.g. 252612045488"
+              placeholder={`${selectedAccount} number e.g. 252612045488`}
               placeholderTextColor={colors.secondaryText}
               keyboardType="phone-pad"
             />
@@ -142,6 +172,25 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  accountOption: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  accountIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  accountLabel: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   label: {
     fontSize: 14,

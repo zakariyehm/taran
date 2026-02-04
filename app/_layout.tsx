@@ -21,7 +21,6 @@ export default function RootLayout() {
           <Stack.Screen name="welcome" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           <Stack.Screen name="add-account" options={{ presentation: 'modal' }} />
         </Stack>
         <StatusBar style="light" />

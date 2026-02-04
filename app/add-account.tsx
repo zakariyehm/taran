@@ -45,6 +45,7 @@ export default function AddAccountScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editAccountLabel, setEditAccountLabel] = useState('EvcPlus');
   const [editNumber, setEditNumber] = useState('');
   const [editError, setEditError] = useState('');
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -63,7 +64,11 @@ export default function AddAccountScreen() {
             AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
           ]);
           const labels = new Set<string>();
-          if (onboard) labels.add('EvcPlus');
+          if (onboard) {
+            const parsed = JSON.parse(onboard);
+            if (parsed?.accountType) labels.add(parsed.accountType);
+            else labels.add('EvcPlus');
+          }
           if (added) {
             const list: AddedAccount[] = JSON.parse(added);
             list.forEach((a) => labels.add(a.label));
@@ -78,14 +83,18 @@ export default function AddAccountScreen() {
   );
 
   const handleAddAccount = async (option: AccountOption) => {
-    if (option.label === 'EvcPlus') {
+    const isOnboardingAccount = option.type === 'local' && existingLabels.has(option.label);
+    if (isOnboardingAccount) {
       try {
         const raw = await AsyncStorage.getItem(ONBOARDING_KEY);
         const parsed = raw ? JSON.parse(raw) : null;
-        setEditNumber(parsed?.number?.trim() || '');
+        const isThisAccount = parsed?.accountType === option.label;
+        setEditAccountLabel(option.label);
+        setEditNumber((isThisAccount ? parsed?.number : '')?.trim() || '');
         setEditError('');
         setEditModalVisible(true);
       } catch {
+        setEditAccountLabel(option.label);
         setEditNumber('');
         setEditModalVisible(true);
       }
@@ -264,7 +273,7 @@ export default function AddAccountScreen() {
             style={[styles.modalContent, { backgroundColor: colors.card }]}
           >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              EvcPlus
+              {editAccountLabel}
             </Text>
             <Text style={[styles.modalSubtitle, { color: colors.secondaryText }]}>
               {editNumber || 'No number'}

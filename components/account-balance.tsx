@@ -43,13 +43,15 @@ export default function AccountBalance() {
         AsyncStorage.getItem(ADDED_ACCOUNTS_KEY),
       ]);
       const parsed = onboardRaw ? JSON.parse(onboardRaw) : null;
-      const evcNumber = parsed?.number?.trim() || '';
+      const onboardNumber = parsed?.number?.trim() || '';
+      const onboardType = parsed?.accountType || 'EvcPlus';
       const local: AccountCard[] = [
-        { icon: '📱', balance: '0.00', last4: evcNumber || '****', label: 'EvcPlus' },
+        { icon: '📱', balance: '0.00', last4: onboardNumber || '****', label: onboardType },
       ];
       const crypto: AccountCard[] = [];
       const added: { label: string; type: string; number?: string; address?: string }[] = addedRaw ? JSON.parse(addedRaw) : [];
       added.forEach((a) => {
+        if (a.type === 'local' && a.label === onboardType) return;
         const card: AccountCard = {
           icon: getIcon(a.label),
           balance: '0.00',
