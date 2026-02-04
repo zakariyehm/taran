@@ -91,18 +91,26 @@ export default function AddAccountScreen() {
       const onboard = onboardRaw ? JSON.parse(onboardRaw) : null;
       const onboardAccountType = onboard?.accountType || 'EvcPlus';
       
+      console.log('=== Opening Account:', option.label, '===');
+      console.log('Onboarding account type:', onboardAccountType);
+      console.log('Current number:', onboard?.number);
+      
       const isOnboardingAccount = option.label === onboardAccountType;
+      console.log('Is onboarding account?', isOnboardingAccount);
       
       if (isOnboardingAccount) {
         setEditAccountLabel(option.label);
         setEditNumber(onboard?.number?.trim() || '');
         setEditError('');
         setEditModalVisible(true);
+        console.log('Opening EDIT modal for onboarding account');
       } else {
         const addedRaw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
         const list: AddedAccount[] = addedRaw ? JSON.parse(addedRaw) : [];
         const existing = list.find((a) => a.label === option.label);
         const prefill = existing?.type === 'local' ? existing.number ?? '' : existing?.address ?? '';
+        console.log('Opening ADD modal for non-onboarding account');
+        console.log('Existing data:', existing);
         setAddOption(option);
         setAddValue(prefill);
         setAddIsEdit(!!existing);
@@ -188,13 +196,18 @@ export default function AddAccountScreen() {
     }
     setEditError('');
     try {
+      console.log('=== Saving Edit for', editAccountLabel, '===');
+      console.log('Number to save:', num);
+      
       // Update onboarding account
       const onboardRaw = await AsyncStorage.getItem(ONBOARDING_KEY);
       const parsed = onboardRaw ? JSON.parse(onboardRaw) : {};
-      await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify({
+      const updatedOnboard = {
         ...parsed,
         number: num,
-      }));
+      };
+      console.log('Saving to onboarding:', JSON.stringify(updatedOnboard, null, 2));
+      await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify(updatedOnboard));
       
       // Remove from deleted accounts if it was deleted before
       const deletedRaw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
@@ -213,9 +226,13 @@ export default function AddAccountScreen() {
         await AsyncStorage.setItem(ADDED_ACCOUNTS_KEY, JSON.stringify(addedList));
       }
       
+      console.log('✅ Successfully saved', editAccountLabel, 'with number:', num);
+      console.log('==============================');
+      
       setEditModalVisible(false);
       router.back();
-    } catch {
+    } catch (error) {
+      console.error('❌ Failed to save:', error);
       setEditError('Failed to save');
     }
   };

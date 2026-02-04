@@ -308,7 +308,11 @@ export default function SwapScreen() {
             router.push({
               pathname: '/choose-provider',
               params: {
-                amount: amountNum.toString(),
+                sendAmount: amountNum.toString(),
+                sendCurrency: sendCurrency,
+                receiveCurrency: receiveCurrency,
+                receiveAmount: swapAmounts.receiveAmount.toString(),
+                amount: amountNum.toString(), // For merchant flow
                 merchantNumber: '600104', // Default merchant number
               },
             });

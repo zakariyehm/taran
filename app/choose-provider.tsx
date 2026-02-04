@@ -2,9 +2,11 @@ import Button from '@/components/ui/button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,11 +15,69 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const ONBOARDING_KEY = '@onboarding_complete';
+const ADDED_ACCOUNTS_KEY = '@added_accounts';
+
 export default function ChooseProviderScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
   const params = useLocalSearchParams();
   const [selectedProvider, setSelectedProvider] = useState<'merchant' | 'automatic' | null>(null);
+  const [evcPlusNumber, setEvcPlusNumber] = useState<string>('');
+
+  useEffect(() => {
+    loadEvcPlusNumber();
+  }, []);
+
+  const loadEvcPlusNumber = async () => {
+    try {
+      console.log('=== Loading EvcPlus Number ===');
+      
+      // First, try to get from onboarding data
+      const onboardRaw = await AsyncStorage.getItem(ONBOARDING_KEY);
+      const onboard = onboardRaw ? JSON.parse(onboardRaw) : null;
+      console.log('Onboarding account type:', onboard?.accountType);
+      
+      let evcNumber = '';
+      
+      // If onboarding account is EvcPlus, use that number
+      if (onboard?.accountType === 'EvcPlus' && onboard?.number) {
+        evcNumber = onboard.number;
+        console.log('Found EvcPlus in onboarding:', evcNumber);
+      } else {
+        // Otherwise, check ADDED_ACCOUNTS for EvcPlus
+        const addedRaw = await AsyncStorage.getItem(ADDED_ACCOUNTS_KEY);
+        if (addedRaw) {
+          const addedList = JSON.parse(addedRaw);
+          const evcAccount = addedList.find((acc: any) => acc.label === 'EvcPlus');
+          if (evcAccount?.number) {
+            evcNumber = evcAccount.number;
+            console.log('Found EvcPlus in added accounts:', evcNumber);
+          }
+        }
+      }
+      
+      if (evcNumber) {
+        // Clean the number: remove spaces, +, -, (), etc.
+        let cleanNumber = evcNumber.replace(/[\s+\-()]/g, '');
+        
+        // Add country code if missing (Somalia = 252)
+        if (cleanNumber.length === 9 && !cleanNumber.startsWith('252')) {
+          cleanNumber = '252' + cleanNumber;
+          console.log('Added country code 252 to number');
+        }
+        
+        console.log('Final EvcPlus number:', cleanNumber);
+        setEvcPlusNumber(cleanNumber);
+      } else {
+        console.warn('⚠️ No EvcPlus account found');
+      }
+      
+      console.log('===========================');
+    } catch (error) {
+      console.error('Failed to load EvcPlus number:', error);
+    }
+  };
 
   const handleNext = () => {
     if (selectedProvider) {
@@ -30,9 +90,28 @@ export default function ChooseProviderScreen() {
             merchantNumber: params.merchantNumber || '600104',
           },
         });
-      } else {
-        // For automatic, go back or handle differently
-        router.back();
+      } else if (selectedProvider === 'automatic') {
+        // Validate phone number before proceeding
+        if (!evcPlusNumber || evcPlusNumber.length < 10) {
+          Alert.alert(
+            'Account Required',
+            'Please add your EvcPlus account number in Settings > Manage Accounts before using automatic swap.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        // Navigate to automatic swap processing
+        router.push({
+          pathname: '/process-swap',
+          params: {
+            sendAmount: params.sendAmount || params.amount || '1',
+            sendCurrency: params.sendCurrency || 'EvcPlus',
+            receiveCurrency: params.receiveCurrency || 'USDT (BEP20)',
+            receiveAmount: params.receiveAmount || params.amount || '1',
+            evcPlusNumber: evcPlusNumber,
+          },
+        });
       }
     }
   };

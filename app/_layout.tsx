@@ -6,10 +6,6 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -22,6 +18,9 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add-account" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="choose-provider" />
+          <Stack.Screen name="confirm-payment" />
+          <Stack.Screen name="process-swap" />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>
