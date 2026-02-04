@@ -13,19 +13,39 @@ import {
 interface AccountCard {
   icon: string;
   balance: string;
+  last4: string;
+  address?: string;
   label: string;
 }
 
 const localCards: AccountCard[] = [
-  { icon: '📱', balance: '50.00', label: 'EvcPlus' },
-  { icon: '📱', balance: '25.00', label: 'Zaad' },
-  { icon: '📱', balance: '15.00', label: 'Sahal' },
+  { icon: '📱', balance: '50.00', last4: '252612045488', label: 'Sahal' },
+  { icon: '📱', balance: '25.00', last4: '252612045489', label: 'Zaad' },
+  { icon: '📱', balance: '15.00', last4: '252612045490', label: 'Hormuud' },
 ];
 
 const cryptoCards: AccountCard[] = [
-  { icon: '₮', balance: '100.00', label: 'USDT (TRC20)' },
-  { icon: '₮', balance: '50.00', label: 'USDT (BEP20)' },
-  { icon: '◎', balance: '2.50', label: 'Solana' },
+  {
+    icon: '₮',
+    balance: '100.00',
+    last4: 'abcd',
+    address: 'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9',
+    label: 'USDT (TRC20)',
+  },
+  {
+    icon: '₮',
+    balance: '50.00',
+    last4: 'ef12',
+    address: '0x742d35Cc6634C0532925a3b844Bc9e7595f8bE12',
+    label: 'USDT (BEP20)',
+  },
+  {
+    icon: '◎',
+    balance: '2.50',
+    last4: '7k9m',
+    address: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+    label: 'Solana',
+  },
 ];
 
 export default function AccountBalance() {
@@ -34,6 +54,23 @@ export default function AccountBalance() {
   const [selectedFilter, setSelectedFilter] = useState<'All' | 'Crypto'>('All');
 
   const cards = selectedFilter === 'Crypto' ? cryptoCards : localCards;
+
+  const maskLast4 = (number: string) => {
+    if (number.length <= 4) return '****';
+    return number.slice(0, -4) + '****';
+  };
+
+  const shortAddress = (address: string, start = 6, end = 4) => {
+    if (address.length <= start + end) return address;
+    return `${address.slice(0, start)}...${address.slice(-end)}`;
+  };
+
+  const getDisplayValue = (card: AccountCard, isCrypto: boolean) => {
+    if (isCrypto && card.address) {
+      return shortAddress(card.address);
+    }
+    return maskLast4(card.last4);
+  };
 
   return (
     <View style={styles.container}>
@@ -102,7 +139,7 @@ export default function AccountBalance() {
               <Text style={styles.flag}>{card.icon}</Text>
             </View>
             <Text style={[styles.balance, { color: colors.text }]}>
-              {card.balance}
+              {getDisplayValue(card, selectedFilter === 'Crypto')}
             </Text>
             <Text style={[styles.currencyName, { color: colors.text }]}>
               {card.label}
@@ -156,7 +193,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   balance: {
-    fontSize: 28,
+    fontSize: 14,
     fontWeight: '700',
     marginBottom: 4,
   },
