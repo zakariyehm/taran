@@ -2,7 +2,7 @@ import Button from '@/components/ui/button';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ScrollView,
@@ -16,13 +16,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function ChooseProviderScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'dark'];
-  const [selectedProvider, setSelectedProvider] = useState<'manual' | 'automatic' | null>(null);
+  const params = useLocalSearchParams();
+  const [selectedProvider, setSelectedProvider] = useState<'merchant' | 'automatic' | null>(null);
 
   const handleNext = () => {
     if (selectedProvider) {
-      // TODO: Navigate to next screen or process the swap
-      console.log('Selected provider:', selectedProvider);
-      router.back();
+      if (selectedProvider === 'merchant') {
+        // Navigate to confirm payment screen for merchant selection
+        router.push({
+          pathname: '/confirm-payment',
+          params: {
+            amount: params.amount || '1',
+            merchantNumber: params.merchantNumber || '600104',
+          },
+        });
+      } else {
+        // For automatic, go back or handle differently
+        router.back();
+      }
     }
   };
 
@@ -83,32 +94,32 @@ export default function ChooseProviderScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Manual Provider */}
+          {/* Merchant Provider */}
           <TouchableOpacity
             style={[
               styles.providerCard,
               {
                 backgroundColor: colors.card,
-                borderColor: selectedProvider === 'manual' ? colors.tint : 'transparent',
+                borderColor: selectedProvider === 'merchant' ? colors.tint : 'transparent',
                 borderWidth: 2,
               },
             ]}
-            onPress={() => setSelectedProvider('manual')}
+            onPress={() => setSelectedProvider('merchant')}
           >
             <View style={styles.providerHeader}>
               <Text style={[styles.providerTitle, { color: colors.text }]}>
-                Manual
+                Merchant
               </Text>
               <View style={styles.radioContainer}>
                 <View
                   style={[
                     styles.radioOuter,
                     {
-                      borderColor: selectedProvider === 'manual' ? colors.tint : colors.border,
+                      borderColor: selectedProvider === 'merchant' ? colors.tint : colors.border,
                     },
                   ]}
                 >
-                  {selectedProvider === 'manual' && (
+                  {selectedProvider === 'merchant' && (
                     <View style={[styles.radioInner, { backgroundColor: colors.tint }]} />
                   )}
                 </View>

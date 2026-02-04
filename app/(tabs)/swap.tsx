@@ -303,7 +303,16 @@ export default function SwapScreen() {
         {/* Swap button - disabled when same currency */}
         <Button
           title="Swap"
-          onPress={() => router.push('/choose-provider')}
+          onPress={() => {
+            const amountNum = parseFloat(sendAmount.replace(/,/g, '')) || 0;
+            router.push({
+              pathname: '/choose-provider',
+              params: {
+                amount: amountNum.toString(),
+                merchantNumber: '600104', // Default merchant number
+              },
+            });
+          }}
           variant="outline"
           style={styles.swapButton}
           disabled={sendCurrency === receiveCurrency}
