@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ADDED_ACCOUNTS_KEY = '@added_accounts';
+const TRANSACTIONS_KEY = '@swap_transactions';
 
 type SwapStep = 
   | 'initializing'
@@ -209,24 +210,38 @@ export default function ProcessSwapScreen() {
       setCurrentStep('completed');
       updateStepStatus('completed', 'completed');
 
-      // Show success alert
-      Alert.alert(
-        'Swap Completed!',
-        `Successfully swapped ${sendAmount} ${sendCurrency} to ${receiveAmount} ${receiveCurrency}`,
-        [
-          {
-            text: 'Done',
-            onPress: () => router.replace('/(tabs)' as any),
-          },
-        ]
-      );
+      // Save transaction to history
+      await saveTransaction();
+
+      // Navigate to swap complete screen
+      router.replace({
+        pathname: '/swap-complete' as any,
+        params: {
+          sendAmount: sendAmount.toString(),
+          sendCurrency,
+          receiveCurrency,
+          receiveAmount: receiveAmount.toString(),
+          transactionId: transactionId,
+        },
+      });
 
     } catch (error: any) {
       console.error('Swap Error:', error);
-      setError(error.message || 'An error occurred');
-      // Mark the preauth step as failed explicitly
+      const errMsg = error.message || 'An error occurred';
+      setError(errMsg);
       updateStepStatus('preauth', 'failed');
       setCurrentStep('failed');
+      // Navigate to swap rejected screen
+      router.replace({
+        pathname: '/swap-rejected' as any,
+        params: {
+          sendAmount: sendAmount.toString(),
+          sendCurrency,
+          receiveCurrency,
+          receiveAmount: receiveAmount.toString(),
+          errorMessage: errMsg,
+        },
+      });
     }
   };
 
@@ -308,7 +323,8 @@ export default function ProcessSwapScreen() {
 
     } catch (error: any) {
       console.error('Confirm Payment Error:', error);
-      setError(error.message || 'Payment confirmation failed');
+      const errMsg = error.message || 'Payment confirmation failed';
+      setError(errMsg);
       updateStepStatus(currentStep, 'failed');
 
       // Cancel the preauth if payment confirmation fails
@@ -319,6 +335,50 @@ export default function ProcessSwapScreen() {
           console.error('Cancel Error:', cancelError);
         }
       }
+
+      // Navigate to swap rejected screen
+      router.replace({
+        pathname: '/swap-rejected' as any,
+        params: {
+          sendAmount: sendAmount.toString(),
+          sendCurrency,
+          receiveCurrency,
+          receiveAmount: receiveAmount.toString(),
+          errorMessage: errMsg,
+        },
+      });
+    }
+  };
+
+  const saveTransaction = async () => {
+    try {
+      const transaction = {
+        id: `SWAP_${Date.now()}`,
+        name: `Swap: ${sendCurrency} → ${receiveCurrency}`,
+        status: 'Completed · Today',
+        amount: receiveAmount.toString(),
+        currency: receiveCurrency,
+        icon: 'swap-horizontal' as const,
+        iconColor: '#3a3a3a',
+        date: new Date().toISOString(),
+        details: {
+          sendAmount: sendAmount.toString(),
+          sendCurrency,
+          receiveAmount: receiveAmount.toString(),
+          receiveCurrency,
+          transactionId,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      const stored = await AsyncStorage.getItem(TRANSACTIONS_KEY);
+      const existing = stored ? JSON.parse(stored) : [];
+      const updated = [transaction, ...existing]; // Add new transaction at the top
+      await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updated));
+      
+      console.log('✅ Transaction saved to history');
+    } catch (error) {
+      console.error('Failed to save transaction:', error);
     }
   };
 

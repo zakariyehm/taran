@@ -21,6 +21,8 @@ export default function RootLayout() {
           <Stack.Screen name="choose-provider" />
           <Stack.Screen name="confirm-payment" />
           <Stack.Screen name="process-swap" />
+          <Stack.Screen name="swap-complete" />
+          <Stack.Screen name="swap-rejected" />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>
